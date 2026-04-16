@@ -12,7 +12,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        build: [linux-latest, linux, linux-arm64, windows, macos-arm64]
+        build: [linux-latest, linux, linux-arm64, windows, macos-amd64, macos-arm64]
         include:
         - build: linux-latest
           os: ubuntu-24.04
@@ -39,6 +39,12 @@ jobs:
           qt-modules: 'qtwebsockets'
           qt-tools: 'tools_qtcreator_gui'
           installer-name: anylink-windows10-amd64.exe
+        - build: macos-amd64
+          os: macos-13
+          qt: 6.9.1
+          arch: clang_64
+          qt-modules: 'qtwebsockets'
+          installer-name: anylink-installer
         - build: macos-arm64
           os: macos-14
           qt: 6.9.1
@@ -57,7 +63,7 @@ jobs:
           echo "ARCHIVE_NAME=anylink-linux-arm64.tar.gz" >> $GITHUB_ENV
         elif [ "${{ matrix.build }}" = "windows" ]; then
           echo "ARCHIVE_NAME=anylink-windows10-amd64.zip" >> $GITHUB_ENV
-        elif [ "${{ matrix.build }}" = "macos" ]; then
+        elif [ "${{ matrix.build }}" = "macos-amd64" ]; then
           echo "ARCHIVE_NAME=anylink-macOS-amd64.dmg" >> $GITHUB_ENV
         elif [ "${{ matrix.build }}" = "macos-arm64" ]; then
           echo "ARCHIVE_NAME=anylink-macOS-arm64.dmg" >> $GITHUB_ENV
@@ -73,7 +79,7 @@ jobs:
           echo "ARCHIVE_NAME=anylink-${{ github.ref_name }}-linux-arm64.tar.gz" >> $GITHUB_ENV
         elif [ "${{ matrix.build }}" = "windows" ]; then
           echo "ARCHIVE_NAME=anylink-${{ github.ref_name }}-windows10-amd64.zip" >> $GITHUB_ENV
-        elif [ "${{ matrix.build }}" = "macos" ]; then
+        elif [ "${{ matrix.build }}" = "macos-amd64" ]; then
           echo "ARCHIVE_NAME=anylink-${{ github.ref_name }}-macOS-amd64.dmg" >> $GITHUB_ENV
         elif [ "${{ matrix.build }}" = "macos-arm64" ]; then
           echo "ARCHIVE_NAME=anylink-${{ github.ref_name }}-macOS-arm64.dmg" >> $GITHUB_ENV
@@ -129,7 +135,7 @@ jobs:
           rm "C:\Program Files\Git\usr\bin\link.exe"
           qmake
           "${IQTA_TOOLS}/QtCreator/bin/jom/jom.exe" -j $(nproc) -f Makefile.Release
-        elif [[ "${{ matrix.build }}" == "macos-arm64" ]]; then
+        elif [[ "${{ matrix.build }}" == "macos-arm64" ]] || [[ "${{ matrix.build }}" == "macos-amd64" ]]; then
           qmake
           make -j $(sysctl -n hw.logicalcpu)
         fi
@@ -185,6 +191,21 @@ jobs:
           # https://bugreports.qt.io/browse/QTIFW-2295
           editbin /subsystem:windows ${{ matrix.installer-name }}
           7z a -tzip -r "${{ github.workspace }}"/archive/${{ env.ARCHIVE_NAME }} ${{ matrix.installer-name }}
+        elif [ "${{ matrix.build }}" = "macos-amd64" ]; then
+          cd installer
+          curl -k -O -L https://mirrors.ustc.edu.cn/qtproject/archive/qt-installer-framework/4.6.1/QtInstallerFramework-macOS-x64-4.6.1.dmg
+          hdiutil attach ./QtInstallerFramework-macOS-x64-4.6.1.dmg
+          /Volumes/QtInstallerFramework-macOS-x64-4.6.1/QtInstallerFramework-macOS-x64-4.6.1.app/Contents/MacOS/QtInstallerFramework-macOS-x64-4.6.1 --al --da -c -t `pwd`/ifw in
+          cd ../out/bin
+          curl -k -L -O https://github.com/tlslink/sslcon/releases/download/latest/sslcon-macOS-amd64.tar.gz
+          tar -zxvf sslcon-*.tar.gz
+          cp vpnagent sslcon AnyLink.app/Contents/MacOS
+          macdeployqt AnyLink.app
+          mkdir -p ../../installer/packages/root/data
+          ../../installer/ifw/bin/archivegen ../../installer/packages/root/data/anylink.7z ./AnyLink.app
+          cd ../../installer
+          ./ifw/bin/binarycreator --offline-only -c config/config.xml -p packages ${{ matrix.installer-name }}
+          hdiutil create -fs HFS+ -srcfolder ${{ matrix.installer-name }}.app -format UDZO "${{ github.workspace }}"/archive/${{ env.ARCHIVE_NAME }}
         elif [ "${{ matrix.build }}" = "macos-arm64" ]; then
           cd installer
           curl -k -O -L https://mirrors.ustc.edu.cn/qtproject/archive/qt-installer-framework/4.6.1/QtInstallerFramework-macOS-x64-4.6.1.dmg
