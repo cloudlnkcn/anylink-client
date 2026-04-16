@@ -40,7 +40,7 @@ jobs:
           qt-tools: 'tools_qtcreator_gui'
           installer-name: anylink-windows10-amd64.exe
         - build: macos-amd64
-          os: macos-13
+          os: macos-15-intel
           qt: 6.9.1
           arch: clang_64
           qt-modules: 'qtwebsockets'
