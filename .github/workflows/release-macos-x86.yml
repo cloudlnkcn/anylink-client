@@ -42,6 +42,11 @@ jobs:
         qmake
         make -j $(sysctl -n hw.logicalcpu)
 
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: 'stable'
+
     - name: Build sslcon from source
       uses: actions/checkout@v4
       with:
